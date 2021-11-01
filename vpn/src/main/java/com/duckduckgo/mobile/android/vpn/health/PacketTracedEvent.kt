@@ -18,7 +18,6 @@ package com.duckduckgo.mobile.android.vpn.health
 
 import xyz.hexene.localvpn.Packet
 import java.text.NumberFormat
-import java.util.concurrent.TimeUnit
 
 data class PacketTracedEvent(val event: TracedState, val timestampNanos: Long = System.nanoTime())
 

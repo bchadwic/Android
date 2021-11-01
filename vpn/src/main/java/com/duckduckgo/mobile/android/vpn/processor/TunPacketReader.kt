@@ -81,7 +81,7 @@ class TunPacketReader(private val tunInterface: ParcelFileDescriptor, private va
             queues.udpDeviceToNetwork.offer(packet)
         } else if (packet.isTCP) {
             queues.tcpDeviceToNetwork.offer(packet)
-        } else if(packet.isTracer) {
+        } else if (packet.isTracer) {
             Timber.i("Found tracer. Offering to TCP device-to-network queue")
             packet.tracerFlow.add(PacketTracedEvent(TracedState.ADDED_TO_DEVICE_TO_NETWORK_QUEUE))
             queues.tcpDeviceToNetwork.offer(packet)

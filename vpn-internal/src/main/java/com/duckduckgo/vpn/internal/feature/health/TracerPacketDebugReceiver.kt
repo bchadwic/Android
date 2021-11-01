@@ -22,7 +22,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import com.duckduckgo.di.scopes.AppObjectGraph
 import com.duckduckgo.mobile.android.vpn.health.PacketTracedEvent
-import com.duckduckgo.mobile.android.vpn.health.TracedState
 import com.duckduckgo.mobile.android.vpn.health.TracedState.ADDED_TO_DEVICE_TO_NETWORK_QUEUE
 import com.duckduckgo.mobile.android.vpn.service.VpnQueues
 import com.duckduckgo.mobile.android.vpn.service.VpnServiceCallbacks
@@ -80,7 +79,7 @@ class TracerPacketDebugReceiverRegister @Inject constructor(
         }
     }
 
-    private fun buildTracerPacket() : Packet {
+    private fun buildTracerPacket(): Packet {
         val byteBuffer = ByteBuffer.allocateDirect(16384)
         byteBuffer.put(-1)
         return Packet(byteBuffer)
