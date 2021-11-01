@@ -78,10 +78,8 @@ class TcpDeviceToNetwork(
         val packet = queues.tcpDeviceToNetwork.take() ?: return
 
         if (packet.isTracer) {
-            Timber.w("tracer packet received %s", packet.tracerId)
-            val now = System.nanoTime()
-            packet.tracerFlow.add(PacketTracedEvent(TracedState.REMOVED_FROM_DEVICE_TO_NETWORK_QUEUE, now))
-            Timber.e(packet.describeTracerFlow())
+            processTracerPacker(packet)
+            return
         }
 
         val destinationAddress = packet.ip4Header.destinationAddress
@@ -108,14 +106,27 @@ class TcpDeviceToNetwork(
         }
     }
 
+    private fun processTracerPacker(packet: Packet) {
+        Timber.w("tracer packet received %s", packet.tracerId)
+        val now = System.nanoTime()
+        packet.tracerFlow.add(PacketTracedEvent(TracedState.REMOVED_FROM_DEVICE_TO_NETWORK_QUEUE, now))
+        Timber.e(packet.describeTracerFlow())
+
+        val responseBuffer = ByteBufferPool.acquire()
+        val connectionParams = TcpConnectionParams("127.0.0.1", 0, 0, packet, responseBuffer)
+        val connectionKey = connectionParams.key()
+
+        processPacketTcbNotInitialized(connectionKey, packet, 0, connectionParams)
+    }
+
     private fun processPacketTcbNotInitialized(connectionKey: String, packet: Packet, totalPacketLength: Int, connectionParams: TcpConnectionParams) {
         Timber.v(
             "New packet. %s. TCB not initialized. %s. Packet length: %d.  Data length: %d",
             connectionKey,
             TcpPacketProcessor.logPacketDetails(
                 packet,
-                packet.tcpHeader.sequenceNumber,
-                packet.tcpHeader.acknowledgementNumber
+                packet.tcpHeader?.sequenceNumber,
+                packet.tcpHeader?.acknowledgementNumber
             ),
             totalPacketLength,
             packet.tcpPayloadSize(true)

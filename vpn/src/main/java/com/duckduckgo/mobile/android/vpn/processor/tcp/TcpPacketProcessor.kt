@@ -173,7 +173,7 @@ class TcpPacketProcessor @AssistedInject constructor(
     )
 
     companion object {
-        fun logPacketDetails(packet: Packet, sequenceNumber: Long, acknowledgementNumber: Long): String {
+        fun logPacketDetails(packet: Packet, sequenceNumber: Long?, acknowledgementNumber: Long?): String {
             with(packet.tcpHeader) {
                 return "\tflags:[ ${isSYN.printFlag("SYN")}${isACK.printFlag("ACK")}${isFIN.printFlag("FIN")}${isPSH.printFlag("PSH")}${
                 isRST.printFlag(

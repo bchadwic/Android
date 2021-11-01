@@ -16,17 +16,19 @@
 
 package xyz.hexene.localvpn;
 
-import static xyz.hexene.localvpn.ByteBufferPool.BUFFER_SIZE;
-
 import com.duckduckgo.mobile.android.vpn.health.PacketTracedEvent;
 import com.duckduckgo.mobile.android.vpn.health.TracedState;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
 import timber.log.Timber;
+
+import static xyz.hexene.localvpn.ByteBufferPool.BUFFER_SIZE;
 
 /** Representation of an IP Packet */
 // TODO: Reduce public mutability
@@ -55,8 +57,12 @@ public class Packet {
         byte b = buffer.get(0);
         if (b == -1) {
             Timber.w("Found tracer");
-            tracerId = UUID.randomUUID().toString();
             isTracer = true;
+            tracerId = UUID.randomUUID().toString();
+            this.ip4Header = new IP4Header(buffer);
+            this.tcpHeader = new TCPHeader(buffer);
+            this.tcpHeader.flags = (byte)(this.tcpHeader.flags | TCPHeader.SYN);
+            this.isTCP = true;
             tracerFlow.add(new PacketTracedEvent(TracedState.CREATED, System.nanoTime()));
             return;
         }
