@@ -142,6 +142,10 @@ class DeviceShieldTrackerActivity :
         ctaShowAll.setOnClickListener {
             viewModel.onViewEvent(DeviceShieldTrackerActivityViewModel.ViewEvent.LaunchMostRecentActivity)
         }
+
+        binding.deviceShieldTrackerLabelEnabled.setOnClickListener {
+            Timber.i("Fake adding a packet")
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

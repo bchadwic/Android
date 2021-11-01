@@ -17,6 +17,8 @@
 package com.duckduckgo.mobile.android.vpn.processor
 
 import android.os.ParcelFileDescriptor
+import com.duckduckgo.mobile.android.vpn.health.PacketTracedEvent
+import com.duckduckgo.mobile.android.vpn.health.TracedState
 import com.duckduckgo.mobile.android.vpn.service.VpnQueues
 import timber.log.Timber
 import xyz.hexene.localvpn.ByteBufferPool
@@ -78,6 +80,10 @@ class TunPacketReader(private val tunInterface: ParcelFileDescriptor, private va
         if (packet.isUDP) {
             queues.udpDeviceToNetwork.offer(packet)
         } else if (packet.isTCP) {
+            queues.tcpDeviceToNetwork.offer(packet)
+        } else if(packet.isTracer) {
+            Timber.i("Found tracer. Offering to TCP device-to-network queue")
+            packet.tracerFlow.add(PacketTracedEvent(TracedState.ADDED_TO_DEVICE_TO_NETWORK_QUEUE))
             queues.tcpDeviceToNetwork.offer(packet)
         }
     }

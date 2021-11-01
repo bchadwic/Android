@@ -16,6 +16,9 @@
 
 package com.duckduckgo.mobile.android.vpn.processor.tcp
 
+import com.duckduckgo.mobile.android.vpn.health.PacketTracedEvent
+import com.duckduckgo.mobile.android.vpn.health.TracedState
+import com.duckduckgo.mobile.android.vpn.health.describeTracerFlow
 import com.duckduckgo.mobile.android.vpn.processor.packet.connectionInfo
 import com.duckduckgo.mobile.android.vpn.processor.requestingapp.AppNameResolver
 import com.duckduckgo.mobile.android.vpn.processor.requestingapp.AppNameResolver.OriginatingApp
@@ -73,6 +76,13 @@ class TcpDeviceToNetwork(
      */
     fun deviceToNetworkProcessing() {
         val packet = queues.tcpDeviceToNetwork.take() ?: return
+
+        if (packet.isTracer) {
+            Timber.w("tracer packet received %s", packet.tracerId)
+            val now = System.nanoTime()
+            packet.tracerFlow.add(PacketTracedEvent(TracedState.REMOVED_FROM_DEVICE_TO_NETWORK_QUEUE, now))
+            Timber.e(packet.describeTracerFlow())
+        }
 
         val destinationAddress = packet.ip4Header.destinationAddress
         val destinationPort = packet.tcpHeader.destinationPort
@@ -292,7 +302,13 @@ class TcpDeviceToNetwork(
         }
     }
 
-    private fun processTrackingRequestPacket(isATrackerRetryRequest: Boolean, tcb: TCB, requestingApp: OriginatingApp, packet: Packet, payloadSize: Int) {
+    private fun processTrackingRequestPacket(
+        isATrackerRetryRequest: Boolean,
+        tcb: TCB,
+        requestingApp: OriginatingApp,
+        packet: Packet,
+        payloadSize: Int
+    ) {
         if (isATrackerRetryRequest) {
             tcb.enterGhostingMode()
             processPacketInGhostingMode(tcb)
