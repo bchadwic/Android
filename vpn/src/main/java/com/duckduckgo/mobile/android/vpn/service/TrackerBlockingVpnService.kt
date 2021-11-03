@@ -85,7 +85,7 @@ class TrackerBlockingVpnService : VpnService(), CoroutineScope by MainScope(), N
     private var executorService: ExecutorService? = null
 
     @Inject
-    lateinit var packetRegister: TracerPacketRegister
+    lateinit var tracerPacketRegister: TracerPacketRegister
 
     inner class VpnServiceBinder : Binder() {
 
@@ -160,7 +160,7 @@ class TrackerBlockingVpnService : VpnService(), CoroutineScope by MainScope(), N
                 tcpPacketProcessor,
                 udpPacketProcessor,
                 TunPacketReader(vpnInterface, queues),
-                TunPacketWriter(vpnInterface, queues)
+                TunPacketWriter(vpnInterface, queues, tracerPacketRegister)
             )
             executorService = Executors.newFixedThreadPool(processors.size).also { executorService ->
                 processors.forEach { executorService.submit(it) }

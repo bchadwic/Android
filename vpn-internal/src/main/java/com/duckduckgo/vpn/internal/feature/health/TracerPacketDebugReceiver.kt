@@ -21,8 +21,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import com.duckduckgo.di.scopes.AppObjectGraph
-import com.duckduckgo.mobile.android.vpn.health.PacketTracedEvent
-import com.duckduckgo.mobile.android.vpn.health.TracedState.ADDED_TO_DEVICE_TO_NETWORK_QUEUE
+import com.duckduckgo.mobile.android.vpn.health.TracerEvent
+import com.duckduckgo.mobile.android.vpn.health.TracedState
+import com.duckduckgo.mobile.android.vpn.health.TracedState.CREATED
+import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister
 import com.duckduckgo.mobile.android.vpn.service.VpnQueues
 import com.duckduckgo.mobile.android.vpn.service.VpnServiceCallbacks
 import com.duckduckgo.mobile.android.vpn.service.VpnStopReason
@@ -30,7 +32,7 @@ import com.squareup.anvil.annotations.ContributesMultibinding
 import kotlinx.coroutines.CoroutineScope
 import timber.log.Timber
 import xyz.hexene.localvpn.Packet
-import java.nio.ByteBuffer
+import java.util.*
 import javax.inject.Inject
 
 /**
@@ -65,24 +67,27 @@ class TracerPacketDebugReceiver(
 @ContributesMultibinding(AppObjectGraph::class)
 class TracerPacketDebugReceiverRegister @Inject constructor(
     private val context: Context,
-    private val vpnQueues: VpnQueues
+    private val vpnQueues: VpnQueues,
+    private val tracerPacketRegister: TracerPacketRegister
 ) : VpnServiceCallbacks {
+
+    private fun execute() {
+        val tracerPacket = buildTracerPacket()
+        tracerPacketRegister.logEvent(TracerEvent(tracerPacket.tracerId, TracedState.ADDED_TO_DEVICE_TO_NETWORK_QUEUE))
+        vpnQueues.tcpDeviceToNetwork.offer(tracerPacket)
+    }
+
+    private fun buildTracerPacket(): Packet {
+        val tracerId = UUID.randomUUID().toString()
+        Timber.w("Injecting tracer packet %s", tracerId)
+        tracerPacketRegister.logEvent(TracerEvent(tracerId, CREATED))
+        return Packet.TracerPacker(tracerId)
+    }
 
     override fun onVpnStarted(coroutineScope: CoroutineScope) {
         Timber.i("Debug receiver %s registered", TracerPacketDebugReceiver::class.java.simpleName)
 
-        TracerPacketDebugReceiver(context) { intent ->
-            Timber.w("Injecting tracer packet")
-            val tracerPacket = buildTracerPacket()
-            vpnQueues.tcpDeviceToNetwork.offer(tracerPacket)
-            tracerPacket.tracerFlow.add(PacketTracedEvent(ADDED_TO_DEVICE_TO_NETWORK_QUEUE))
-        }
-    }
-
-    private fun buildTracerPacket(): Packet {
-        val byteBuffer = ByteBuffer.allocateDirect(16384)
-        byteBuffer.put(-1)
-        return Packet(byteBuffer)
+        TracerPacketDebugReceiver(context) { execute() }
     }
 
     override fun onVpnStopped(coroutineScope: CoroutineScope, vpnStopReason: VpnStopReason) {

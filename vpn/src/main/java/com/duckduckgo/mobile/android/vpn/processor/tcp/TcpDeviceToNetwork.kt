@@ -16,9 +16,9 @@
 
 package com.duckduckgo.mobile.android.vpn.processor.tcp
 
-import com.duckduckgo.mobile.android.vpn.health.PacketTracedEvent
+import com.duckduckgo.mobile.android.vpn.health.TracerEvent
 import com.duckduckgo.mobile.android.vpn.health.TracedState
-import com.duckduckgo.mobile.android.vpn.health.describeTracerFlow
+import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister
 import com.duckduckgo.mobile.android.vpn.processor.packet.connectionInfo
 import com.duckduckgo.mobile.android.vpn.processor.requestingapp.AppNameResolver
 import com.duckduckgo.mobile.android.vpn.processor.requestingapp.AppNameResolver.OriginatingApp
@@ -67,7 +67,8 @@ class TcpDeviceToNetwork(
     private val hostnameExtractor: HostnameExtractor,
     private val payloadBytesExtractor: PayloadBytesExtractor,
     private val recentAppTrackerCache: RecentAppTrackerCache,
-    private val vpnCoroutineScope: CoroutineScope
+    private val vpnCoroutineScope: CoroutineScope,
+    private val tracerRegister: TracerPacketRegister
 ) {
 
     /**
@@ -107,16 +108,19 @@ class TcpDeviceToNetwork(
     }
 
     private fun processTracerPacker(packet: Packet) {
-        Timber.w("tracer packet received %s", packet.tracerId)
-        val now = System.nanoTime()
-        packet.tracerFlow.add(PacketTracedEvent(TracedState.REMOVED_FROM_DEVICE_TO_NETWORK_QUEUE, now))
-        Timber.e(packet.describeTracerFlow())
+        val tracerId = packet.tracerId
+        tracerRegister.logEvent(TracerEvent(tracerId, TracedState.REMOVED_FROM_DEVICE_TO_NETWORK_QUEUE))
 
-        val responseBuffer = ByteBufferPool.acquire()
-        val connectionParams = TcpConnectionParams("127.0.0.1", 0, 0, packet, responseBuffer)
-        val connectionKey = connectionParams.key()
+        val idLength = tracerId.length
+        val idBytes = tracerId.toByteArray()
 
-        processPacketTcbNotInitialized(connectionKey, packet, 0, connectionParams)
+        val byteBuffer = ByteBufferPool.acquire()
+        byteBuffer.put(-1)
+        byteBuffer.putInt(idLength)
+        byteBuffer.put(idBytes)
+
+        tracerRegister.logEvent(TracerEvent(tracerId, TracedState.ADDED_TO_NETWORK_TO_DEVICE_QUEUE))
+        queues.networkToDevice.offer(byteBuffer)
     }
 
     private fun processPacketTcbNotInitialized(connectionKey: String, packet: Packet, totalPacketLength: Int, connectionParams: TcpConnectionParams) {

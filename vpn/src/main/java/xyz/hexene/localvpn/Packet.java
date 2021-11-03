@@ -16,17 +16,9 @@
 
 package xyz.hexene.localvpn;
 
-import com.duckduckgo.mobile.android.vpn.health.PacketTracedEvent;
-import com.duckduckgo.mobile.android.vpn.health.TracedState;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
-import timber.log.Timber;
 
 import static xyz.hexene.localvpn.ByteBufferPool.BUFFER_SIZE;
 
@@ -46,7 +38,6 @@ public class Packet {
     public UDPHeader udpHeader;
     public ByteBuffer backingBuffer;
 
-    public List<PacketTracedEvent> tracerFlow = new ArrayList<>();
     public boolean isTracer;
     public String tracerId;
 
@@ -54,19 +45,6 @@ public class Packet {
     private boolean isUDP;
 
     public Packet(ByteBuffer buffer) throws UnknownHostException {
-        byte b = buffer.get(0);
-        if (b == -1) {
-            Timber.w("Found tracer");
-            isTracer = true;
-            tracerId = UUID.randomUUID().toString();
-            this.ip4Header = new IP4Header(buffer);
-            this.tcpHeader = new TCPHeader(buffer);
-            this.tcpHeader.flags = (byte)(this.tcpHeader.flags | TCPHeader.SYN);
-            this.isTCP = true;
-            tracerFlow.add(new PacketTracedEvent(TracedState.CREATED, System.nanoTime()));
-            return;
-        }
-
         this.ip4Header = new IP4Header(buffer);
         if (this.ip4Header.protocol == IP4Header.TransportProtocol.TCP) {
             this.tcpHeader = new TCPHeader(buffer);
@@ -76,6 +54,15 @@ public class Packet {
             this.isUDP = true;
         }
         this.backingBuffer = buffer;
+    }
+
+    private Packet() {}
+
+    public static Packet TracerPacker(String tracerId) {
+        Packet packet = new Packet();
+        packet.isTracer = true;
+        packet.tracerId = tracerId;
+        return packet;
     }
 
     @Override

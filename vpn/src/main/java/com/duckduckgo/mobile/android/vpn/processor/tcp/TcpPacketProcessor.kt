@@ -19,6 +19,7 @@ package com.duckduckgo.mobile.android.vpn.processor.tcp
 import android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY
 import android.os.Process.setThreadPriority
 import com.duckduckgo.mobile.android.vpn.di.TcpNetworkSelector
+import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister
 import com.duckduckgo.mobile.android.vpn.processor.requestingapp.AppNameResolver
 import com.duckduckgo.mobile.android.vpn.processor.requestingapp.OriginatingAppPackageIdentifierStrategy
 import com.duckduckgo.mobile.android.vpn.processor.tcp.ConnectionInitializer.TcpConnectionParams
@@ -63,7 +64,8 @@ class TcpPacketProcessor @AssistedInject constructor(
     payloadBytesExtractor: PayloadBytesExtractor,
     tcpSocketWriter: TcpSocketWriter,
     recentAppTrackerCache: RecentAppTrackerCache,
-    @Assisted private val vpnCoroutineScope: CoroutineScope
+    @Assisted private val vpnCoroutineScope: CoroutineScope,
+    tracerPacketRegister: TracerPacketRegister
 ) : Runnable {
 
     @AssistedFactory
@@ -98,7 +100,8 @@ class TcpPacketProcessor @AssistedInject constructor(
             hostnameExtractor = hostnameExtractor,
             payloadBytesExtractor = payloadBytesExtractor,
             recentAppTrackerCache = recentAppTrackerCache,
-            vpnCoroutineScope = vpnCoroutineScope
+            vpnCoroutineScope = vpnCoroutineScope,
+            tracerRegister = tracerPacketRegister
         )
 
     override fun run() {
