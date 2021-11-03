@@ -17,6 +17,7 @@
 package com.duckduckgo.mobile.android.vpn.processor
 
 import android.os.ParcelFileDescriptor
+import android.os.Process
 import com.duckduckgo.mobile.android.vpn.service.VpnQueues
 import timber.log.Timber
 import xyz.hexene.localvpn.ByteBufferPool
@@ -29,6 +30,7 @@ class TunPacketWriter(private val tunInterface: ParcelFileDescriptor, private va
     private var running = false
 
     override fun run() {
+        Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY)
         Timber.w("TunPacketWriter started")
 
         running = true
