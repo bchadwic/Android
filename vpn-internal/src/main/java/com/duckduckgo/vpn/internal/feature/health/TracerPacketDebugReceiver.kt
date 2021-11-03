@@ -38,7 +38,8 @@ import javax.inject.Inject
 /**
  * This receiver allows to send a diagnostic packet through the system. This can be used as an indicator of app (bad) health
  *
- * $ adb shell am broadcast -a tracer
+ * adb shell am broadcast -a tracer                     [inject 1 tracer]
+ * adb shell am broadcast -a tracer --es times n        [inject n tracers]
  */
 class TracerPacketDebugReceiver(
     context: Context,
@@ -71,10 +72,12 @@ class TracerPacketDebugReceiverRegister @Inject constructor(
     private val tracerPacketRegister: TracerPacketRegister
 ) : VpnServiceCallbacks {
 
-    private fun execute() {
-        val tracerPacket = buildTracerPacket()
-        tracerPacketRegister.logEvent(TracerEvent(tracerPacket.tracerId, TracedState.ADDED_TO_DEVICE_TO_NETWORK_QUEUE))
-        vpnQueues.tcpDeviceToNetwork.offer(tracerPacket)
+    private fun execute(times: Int) {
+        for(i in 0 until times) {
+            val tracerPacket = buildTracerPacket()
+            tracerPacketRegister.logEvent(TracerEvent(tracerPacket.tracerId, TracedState.ADDED_TO_DEVICE_TO_NETWORK_QUEUE))
+            vpnQueues.tcpDeviceToNetwork.offer(tracerPacket)
+        }
     }
 
     private fun buildTracerPacket(): Packet {
@@ -87,7 +90,9 @@ class TracerPacketDebugReceiverRegister @Inject constructor(
     override fun onVpnStarted(coroutineScope: CoroutineScope) {
         Timber.i("Debug receiver %s registered", TracerPacketDebugReceiver::class.java.simpleName)
 
-        TracerPacketDebugReceiver(context) { execute() }
+        TracerPacketDebugReceiver(context) { intent ->
+            val times = intent.getStringExtra("times")?.toInt() ?: 1
+            execute(times) }
     }
 
     override fun onVpnStopped(coroutineScope: CoroutineScope, vpnStopReason: VpnStopReason) {
