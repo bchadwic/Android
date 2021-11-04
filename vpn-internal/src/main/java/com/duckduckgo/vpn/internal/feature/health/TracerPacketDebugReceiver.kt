@@ -21,9 +21,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import com.duckduckgo.di.scopes.AppObjectGraph
-import com.duckduckgo.mobile.android.vpn.health.TracerEvent
 import com.duckduckgo.mobile.android.vpn.health.TracedState
 import com.duckduckgo.mobile.android.vpn.health.TracedState.CREATED
+import com.duckduckgo.mobile.android.vpn.health.TracerEvent
 import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister
 import com.duckduckgo.mobile.android.vpn.service.VpnQueues
 import com.duckduckgo.mobile.android.vpn.service.VpnServiceCallbacks
@@ -73,7 +73,7 @@ class TracerPacketDebugReceiverRegister @Inject constructor(
 ) : VpnServiceCallbacks {
 
     private fun execute(times: Int) {
-        for(i in 0 until times) {
+        for (i in 0 until times) {
             val tracerPacket = buildTracerPacket()
             tracerPacketRegister.logEvent(TracerEvent(tracerPacket.tracerId, TracedState.ADDED_TO_DEVICE_TO_NETWORK_QUEUE))
             vpnQueues.tcpDeviceToNetwork.offer(tracerPacket)
@@ -92,7 +92,8 @@ class TracerPacketDebugReceiverRegister @Inject constructor(
 
         TracerPacketDebugReceiver(context) { intent ->
             val times = intent.getStringExtra("times")?.toInt() ?: 1
-            execute(times) }
+            execute(times)
+        }
     }
 
     override fun onVpnStopped(coroutineScope: CoroutineScope, vpnStopReason: VpnStopReason) {
