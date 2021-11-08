@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.duckduckgo.vpn.internal">
 
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application>
         <activity android:name=".feature.rules.ExceptionRulesDebugActivity">
         </activity>
@@ -9,6 +10,14 @@
             android:name=".feature.VpnInternalSettingsActivity"
             android:process=":vpn"
             android:label="@string/vpnDevSettingsTitle"/>
+
+        <activity
+            android:name=".feature.health.VpnDiagnosticsActivity"
+            android:parentActivityName="com.duckduckgo.mobile.android.vpn.ui.onboarding.DeviceShieldEnabledActivity"
+            android:process=":vpn" >
+        </activity>
+
+
     </application>
 
 </manifest>

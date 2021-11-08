@@ -27,6 +27,7 @@ import android.system.OsConstants.AF_INET6
 import androidx.core.content.ContextCompat
 import com.duckduckgo.app.global.plugins.PluginPoint
 import com.duckduckgo.mobile.android.vpn.apps.TrackingProtectionAppsRepository
+import com.duckduckgo.mobile.android.vpn.health.HealthMetricCounter
 import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister
 import com.duckduckgo.mobile.android.vpn.pixels.DeviceShieldPixels
 import com.duckduckgo.mobile.android.vpn.processor.TunPacketReader
@@ -86,6 +87,9 @@ class TrackerBlockingVpnService : VpnService(), CoroutineScope by MainScope(), N
 
     @Inject
     lateinit var tracerPacketRegister: TracerPacketRegister
+
+    @Inject
+    lateinit var healthMetricCounter: HealthMetricCounter
 
     inner class VpnServiceBinder : Binder() {
 
@@ -159,7 +163,7 @@ class TrackerBlockingVpnService : VpnService(), CoroutineScope by MainScope(), N
             val processors = listOf(
                 tcpPacketProcessor,
                 udpPacketProcessor,
-                TunPacketReader(vpnInterface, queues),
+                TunPacketReader(vpnInterface, queues, healthMetricCounter),
                 TunPacketWriter(vpnInterface, queues, tracerPacketRegister)
             )
             executorService = Executors.newFixedThreadPool(processors.size).also { executorService ->

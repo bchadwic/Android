@@ -19,6 +19,7 @@ package com.duckduckgo.mobile.android.vpn.processor.udp
 import android.os.Process.THREAD_PRIORITY_URGENT_DISPLAY
 import android.os.Process.setThreadPriority
 import android.os.SystemClock
+import com.duckduckgo.mobile.android.vpn.health.HealthMetricCounter
 import com.duckduckgo.mobile.android.vpn.processor.packet.connectionInfo
 import com.duckduckgo.mobile.android.vpn.processor.requestingapp.AppNameResolver
 import com.duckduckgo.mobile.android.vpn.processor.requestingapp.AppNameResolver.OriginatingApp
@@ -48,7 +49,8 @@ class UdpPacketProcessor @AssistedInject constructor(
     private val packetPersister: PacketPersister,
     private val originatingAppPackageResolver: OriginatingAppPackageIdentifierStrategy,
     private val appNameResolver: AppNameResolver,
-    private val channelCache: UdpChannelCache
+    private val channelCache: UdpChannelCache,
+    private val healthMetricCounter: HealthMetricCounter
 ) : Runnable {
 
     @AssistedFactory
@@ -121,6 +123,8 @@ class UdpPacketProcessor @AssistedInject constructor(
      */
     private fun deviceToNetworkProcessing() {
         val packet = queues.udpDeviceToNetwork.take() ?: return
+
+        healthMetricCounter.onReadFromDeviceToNetworkQueue()
 
         val destinationAddress = packet.ip4Header.destinationAddress
         val destinationPort = packet.udpHeader.destinationPort

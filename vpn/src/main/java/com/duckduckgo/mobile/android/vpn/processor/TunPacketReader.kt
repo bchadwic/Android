@@ -18,6 +18,7 @@ package com.duckduckgo.mobile.android.vpn.processor
 
 import android.os.ParcelFileDescriptor
 import android.os.Process
+import com.duckduckgo.mobile.android.vpn.health.HealthMetricCounter
 import com.duckduckgo.mobile.android.vpn.service.VpnQueues
 import timber.log.Timber
 import xyz.hexene.localvpn.ByteBufferPool
@@ -28,7 +29,8 @@ import java.nio.channels.FileChannel
 
 class TunPacketReader(
     private val tunInterface: ParcelFileDescriptor,
-    private val queues: VpnQueues
+    private val queues: VpnQueues,
+    private val healthMetricCounter: HealthMetricCounter
 ) : Runnable {
 
     private var running = false
@@ -78,12 +80,16 @@ class TunPacketReader(
             return
         }
 
+        healthMetricCounter.onTunPacketReceived()
+
         bufferToNetwork.flip()
         val packet = Packet(bufferToNetwork)
         if (packet.isUDP) {
             queues.udpDeviceToNetwork.offer(packet)
+            healthMetricCounter.onWrittenToDeviceToNetworkQueue()
         } else if (packet.isTCP) {
             queues.tcpDeviceToNetwork.offer(packet)
+            healthMetricCounter.onWrittenToDeviceToNetworkQueue()
         }
     }
 

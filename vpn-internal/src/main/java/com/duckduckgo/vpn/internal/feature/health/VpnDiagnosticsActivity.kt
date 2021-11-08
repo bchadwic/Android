@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package dummy.ui
+package com.duckduckgo.vpn.internal.feature.health
 
 import android.content.Context
 import android.content.Intent
@@ -24,58 +24,81 @@ import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.duckduckgo.app.global.DuckDuckGoActivity
 import com.duckduckgo.app.global.extensions.historicalExitReasonsByProcessName
-import com.duckduckgo.app.trackerdetection.api.WebTrackersBlockedRepository
 import com.duckduckgo.mobile.android.vpn.R
+import com.duckduckgo.mobile.android.vpn.databinding.ActivityVpnDiagnosticsBinding
+import com.duckduckgo.mobile.android.vpn.health.HealthMetricCounter
+import com.duckduckgo.mobile.android.vpn.health.TracedState
+import com.duckduckgo.mobile.android.vpn.health.TracerEvent
+import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister
+import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister.TracerSummary.Completed
 import com.duckduckgo.mobile.android.vpn.model.TimePassed
+import com.duckduckgo.mobile.android.vpn.service.VpnQueues
 import com.duckduckgo.mobile.android.vpn.stats.AppTrackerBlockingStatsRepository
-import com.duckduckgo.mobile.android.vpn.store.DatabaseDateFormatter
 import dagger.android.AndroidInjection
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.firstOrNull
-import org.threeten.bp.LocalDateTime
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.NetworkInterface
+import java.text.NumberFormat
 import javax.inject.Inject
 
-class VpnDiagnosticsActivity : AppCompatActivity(R.layout.activity_vpn_diagnostics), CoroutineScope by MainScope() {
+class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope() {
 
-    private lateinit var networkAddresses: TextView
-    private lateinit var meteredConnectionText: TextView
-    private lateinit var vpnActiveText: TextView
-    private lateinit var networkAvailable: TextView
-    private lateinit var runningTime: TextView
-    private lateinit var appTrackersTextView: TextView
-    private lateinit var webTrackersTextView: TextView
-    private lateinit var dnsServersText: TextView
+    @Inject
+    lateinit var tracerPacketBuilder: TracerPacketBuilder
 
     private lateinit var connectivityManager: ConnectivityManager
+
+    private lateinit var binding: ActivityVpnDiagnosticsBinding
 
     @Inject
     lateinit var repository: AppTrackerBlockingStatsRepository
 
     @Inject
-    lateinit var webTrackersBlockedRepository: WebTrackersBlockedRepository
+    lateinit var healthMetricCounter: HealthMetricCounter
+
+    @Inject
+    lateinit var tracerPacketRegister: TracerPacketRegister
+
+    @Inject
+    lateinit var vpnQueues: VpnQueues
 
     private var timerUpdateJob: Job? = null
 
+    private val numberFormatter = NumberFormat.getNumberInstance().also { it.maximumFractionDigits = 2 }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        binding = ActivityVpnDiagnosticsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         setSupportActionBar(findViewById(R.id.toolbar))
 
         AndroidInjection.inject(this)
 
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-        setViewReferences()
+        configureEventHandlers()
         updateNetworkStatus()
+    }
+
+    private fun configureEventHandlers() {
+        binding.clearTracersButton.setOnClickListener {
+            tracerPacketRegister.deleteAll()
+        }
+
+        binding.insertTracerButton.setOnClickListener {
+            val packet = tracerPacketBuilder.build()
+            tracerPacketRegister.logEvent(TracerEvent(packet.tracerId, TracedState.CREATED))
+            tracerPacketRegister.logEvent(TracerEvent(packet.tracerId, TracedState.ADDED_TO_NETWORK_TO_DEVICE_QUEUE))
+            vpnQueues.tcpDeviceToNetwork.offer(packet)
+        }
     }
 
     private fun updateNetworkStatus() {
@@ -84,24 +107,36 @@ class VpnDiagnosticsActivity : AppCompatActivity(R.layout.activity_vpn_diagnosti
             val dnsInfo = retrieveDnsInfo()
             val addresses = retrieveIpAddressesInfo(networkInfo)
             val totalAppTrackers = retrieveAppTrackersBlockedInfo()
-            val totalWebTrackers = retrieveWebTrackersBlockedInfo()
             val runningTimeFormatted = retrieveRunningTimeInfo()
             val appTrackersBlockedFormatted = generateTrackersBlocked(totalAppTrackers)
-            val webTrackersBlockedFormatted = generateTrackersBlocked(totalWebTrackers)
+            val tracerInfo = retrieveTracerInfo()
 
             withContext(Dispatchers.Main) {
-                networkAddresses.text = addresses
-                meteredConnectionText.text = getString(R.string.atp_MeteredConnection, networkInfo.metered.toString())
-                vpnActiveText.text = getString(R.string.atp_ConnectionStatus, networkInfo.vpn.toString())
-                networkAvailable.text = getString(R.string.atp_NetworkAvailable, networkInfo.connectedToInternet.toString())
-                runningTime.text = runningTimeFormatted
-                appTrackersTextView.text = "App $appTrackersBlockedFormatted"
-                webTrackersTextView.text = "Web $webTrackersBlockedFormatted"
-                dnsServersText.text = getString(R.string.atp_DnsServers, dnsInfo)
+                binding.networkAddresses.text = addresses
+                binding.meteredConnectionStatus.text = getString(R.string.atp_MeteredConnection, networkInfo.metered.toString())
+                binding.vpnStatus.text = getString(R.string.atp_ConnectionStatus, networkInfo.vpn.toString())
+                binding.networkAvailable.text = getString(R.string.atp_NetworkAvailable, networkInfo.connectedToInternet.toString())
+                binding.runningTime.text = runningTimeFormatted
+                binding.appTrackersBlockedText.text = "App $appTrackersBlockedFormatted"
+                binding.dnsServersText.text = getString(R.string.atp_DnsServers, dnsInfo)
+                binding.tracerCompletionTimeMean.text = String.format("Average trace time: %s ms", numberFormatter.format(tracerInfo.meanSuccessfulTime))
+                binding.tracerNumberSuccessful.text = String.format("# successful traces: %d", tracerInfo.numberSuccessfulTraces)
+                binding.tracerNumberFailed.text = String.format("# failed traces: %d", tracerInfo.numberFailedTraces)
             }
         }
 
     }
+
+    private fun retrieveTracerInfo(): TracerInfo {
+        val traces = tracerPacketRegister.getAllTraces()
+        val completedTraces = traces.filterIsInstance<Completed>()
+
+        val meanCompletedNs = if (completedTraces.isEmpty()) 0.0 else completedTraces.sumOf { it.timeToCompleteNanos }.toDouble() / completedTraces.size
+        val meanCompletedMs = meanCompletedNs / 1_000_000
+        return TracerInfo(completedTraces.size, traces.size - completedTraces.size, meanCompletedMs)
+    }
+
+    data class TracerInfo(val numberSuccessfulTraces: Int, val numberFailedTraces: Int, val meanSuccessfulTime: Double)
 
     private fun retrieveHistoricalCrashInfo(): AppExitHistory {
         if (Build.VERSION.SDK_INT < 30) {
@@ -133,12 +168,6 @@ class VpnDiagnosticsActivity : AppCompatActivity(R.layout.activity_vpn_diagnosti
         generateTimeRunningMessage(repository.getRunningTimeMillis({ repository.noStartDate() }).firstOrNull() ?: 0L)
 
     private suspend fun retrieveAppTrackersBlockedInfo() = (repository.getVpnTrackers({ repository.noStartDate() }).firstOrNull() ?: emptyList()).size
-
-    private suspend fun retrieveWebTrackersBlockedInfo() = (webTrackersBlockedRepository.get({ noStartDate() }).firstOrNull() ?: emptyList()).size
-
-    private fun noStartDate(): String {
-        return DatabaseDateFormatter.timestamp(LocalDateTime.of(2000, 1, 1, 0, 0))
-    }
 
     private fun retrieveIpAddressesInfo(networkInfo: NetworkInfo): String {
         return if (networkInfo.networks.isEmpty()) {
@@ -265,17 +294,6 @@ class VpnDiagnosticsActivity : AppCompatActivity(R.layout.activity_vpn_diagnosti
     override fun onStop() {
         super.onStop()
         timerUpdateJob?.cancel()
-    }
-
-    private fun setViewReferences() {
-        networkAddresses = findViewById(R.id.networkAddresses)
-        meteredConnectionText = findViewById(R.id.meteredConnectionStatus)
-        vpnActiveText = findViewById(R.id.vpnStatus)
-        networkAvailable = findViewById(R.id.networkAvailable)
-        runningTime = findViewById(R.id.runningTime)
-        appTrackersTextView = findViewById(R.id.appTrackersBlockedText)
-        webTrackersTextView = findViewById(R.id.webTrackersBlockedText)
-        dnsServersText = findViewById(R.id.dnsServersText)
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {

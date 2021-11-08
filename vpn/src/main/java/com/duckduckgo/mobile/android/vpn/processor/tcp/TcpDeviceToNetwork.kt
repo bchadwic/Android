@@ -16,6 +16,7 @@
 
 package com.duckduckgo.mobile.android.vpn.processor.tcp
 
+import com.duckduckgo.mobile.android.vpn.health.HealthMetricCounter
 import com.duckduckgo.mobile.android.vpn.health.TracerEvent
 import com.duckduckgo.mobile.android.vpn.health.TracedState
 import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister
@@ -68,7 +69,8 @@ class TcpDeviceToNetwork(
     private val payloadBytesExtractor: PayloadBytesExtractor,
     private val recentAppTrackerCache: RecentAppTrackerCache,
     private val vpnCoroutineScope: CoroutineScope,
-    private val tracerRegister: TracerPacketRegister
+    private val tracerRegister: TracerPacketRegister,
+    private val healthMetricCounter: HealthMetricCounter
 ) {
 
     /**
@@ -82,6 +84,8 @@ class TcpDeviceToNetwork(
             processTracerPacker(packet)
             return
         }
+
+        healthMetricCounter.onReadFromDeviceToNetworkQueue()
 
         val destinationAddress = packet.ip4Header.destinationAddress
         val destinationPort = packet.tcpHeader.destinationPort

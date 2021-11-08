@@ -21,16 +21,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import com.duckduckgo.di.scopes.AppObjectGraph
-import com.duckduckgo.mobile.android.vpn.health.TracedState
-import com.duckduckgo.mobile.android.vpn.health.TracerEvent
-import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister
-import com.duckduckgo.mobile.android.vpn.service.VpnQueues
+import com.duckduckgo.mobile.android.vpn.health.HealthMetricCounter
 import com.duckduckgo.mobile.android.vpn.service.VpnServiceCallbacks
 import com.duckduckgo.mobile.android.vpn.service.VpnStopReason
 import com.squareup.anvil.annotations.ContributesMultibinding
 import kotlinx.coroutines.CoroutineScope
 import timber.log.Timber
-import xyz.hexene.localvpn.Packet
+import java.util.*
 import javax.inject.Inject
 
 /**
@@ -39,7 +36,7 @@ import javax.inject.Inject
  * adb shell am broadcast -a tracer                     [inject 1 tracer]
  * adb shell am broadcast -a tracer --es times n        [inject n tracers]
  */
-class TracerPacketDebugReceiver(
+class HealthStatsDumpDebugReceiver(
     context: Context,
     intentAction: String = ACTION,
     private val receiver: (Intent) -> Unit
@@ -55,7 +52,7 @@ class TracerPacketDebugReceiver(
     }
 
     companion object {
-        private const val ACTION = "tracer"
+        private const val ACTION = "healthdump"
 
         fun ruleIntent(): Intent {
             return Intent(ACTION)
@@ -64,38 +61,24 @@ class TracerPacketDebugReceiver(
 }
 
 @ContributesMultibinding(AppObjectGraph::class)
-class TracerPacketDebugReceiverRegister @Inject constructor(
+class HealthStatsDumpDebugReceiverRegister @Inject constructor(
     private val context: Context,
-    private val vpnQueues: VpnQueues,
-    private val tracerPacketRegister: TracerPacketRegister,
-    private val tracerPacketBuilder: TracerPacketBuilder
+    private val healthMetricCounter: HealthMetricCounter
 ) : VpnServiceCallbacks {
 
-    private fun execute(times: Int) {
-        for (i in 0 until times) {
-            val tracerPacket = buildTracerPacket()
-            tracerPacketRegister.logEvent(TracerEvent(tracerPacket.tracerId, TracedState.CREATED))
-
-            Timber.w("Injecting tracer packet %s", tracerPacket.tracerId)
-            tracerPacketRegister.logEvent(TracerEvent(tracerPacket.tracerId, TracedState.ADDED_TO_DEVICE_TO_NETWORK_QUEUE))
-            vpnQueues.tcpDeviceToNetwork.offer(tracerPacket)
-        }
-    }
-
-    private fun buildTracerPacket(): Packet {
-        return tracerPacketBuilder.build()
+    private fun execute() {
+        healthMetricCounter.printStats()
     }
 
     override fun onVpnStarted(coroutineScope: CoroutineScope) {
-        Timber.i("Debug receiver %s registered", TracerPacketDebugReceiver::class.java.simpleName)
+        Timber.i("Debug receiver %s registered ", HealthStatsDumpDebugReceiver::class.java.simpleName)
 
-        TracerPacketDebugReceiver(context) { intent ->
-            val times = intent.getStringExtra("times")?.toInt() ?: 1
-            execute(times)
+        HealthStatsDumpDebugReceiver(context) {
+            execute()
         }
     }
 
     override fun onVpnStopped(coroutineScope: CoroutineScope, vpnStopReason: VpnStopReason) {
-        Timber.i("Debug receiver %s stopping", TracerPacketDebugReceiver::class.java.simpleName)
+        Timber.i("Debug receiver %s stopping", HealthStatsDumpDebugReceiver::class.java.simpleName)
     }
 }

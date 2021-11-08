@@ -16,12 +16,6 @@
             android:parentActivityName=".ui.tracker_activity.DeviceShieldTrackerActivity">
         </activity>
 
-        <activity
-            android:name="dummy.ui.VpnDiagnosticsActivity"
-            android:parentActivityName=".ui.tracker_activity.DeviceShieldTrackerActivity"
-            android:process=":vpn" >
-        </activity>
-
         <activity android:name=".service.VpnPermissionRequesterActivity"
                   android:screenOrientation="portrait"/>
 

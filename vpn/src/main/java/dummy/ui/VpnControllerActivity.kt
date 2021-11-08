@@ -22,11 +22,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.net.toUri
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.duckduckgo.app.global.DuckDuckGoActivity
 import com.duckduckgo.app.trackerdetection.db.WebTrackerBlocked
 import com.duckduckgo.mobile.android.vpn.R
 import com.duckduckgo.mobile.android.vpn.model.*
@@ -34,7 +32,6 @@ import com.duckduckgo.mobile.android.vpn.stats.AppTrackerBlockingStatsRepository
 import com.duckduckgo.mobile.android.vpn.store.VpnDatabase
 import com.google.android.material.snackbar.Snackbar
 import dagger.android.AndroidInjection
-import dummy.VpnViewModelFactory
 import dummy.ui.VpnControllerViewModel.AppTrackersBlocked
 import kotlinx.coroutines.*
 import org.threeten.bp.LocalDateTime
@@ -44,38 +41,34 @@ import timber.log.Timber
 import java.text.NumberFormat
 import javax.inject.Inject
 
-class VpnControllerActivity : AppCompatActivity(R.layout.activity_vpn_controller), CoroutineScope by MainScope() {
+class VpnControllerActivity : DuckDuckGoActivity(), CoroutineScope by MainScope() {
+
+    private val viewModel: VpnControllerViewModel by bindViewModel()
 
     private lateinit var lastAppTrackerDomainTextView: TextView
     private lateinit var appTrackerCompaniesBlockedTodayTextView: TextView
     private lateinit var appTrackersBlockedTodayTextView: TextView
     private lateinit var appTrackerCompaniesBlockedWeekTextView: TextView
-    private lateinit var appTrackersBlockedWeekTextView: TextView
 
+    private lateinit var appTrackersBlockedWeekTextView: TextView
     private lateinit var lastWebTrackerDomainTextView: TextView
     private lateinit var webTrackerCompaniesBlockedTodayTextView: TextView
     private lateinit var webTrackersBlockedTodayTextView: TextView
     private lateinit var webTrackerCompaniesBlockedWeekTextView: TextView
-    private lateinit var webTrackersBlockedWeekTextView: TextView
 
+    private lateinit var webTrackersBlockedWeekTextView: TextView
     private lateinit var appVersionText: TextView
     private lateinit var timeRunningTodayTextView: TextView
     private lateinit var dataSentTextView: TextView
     private lateinit var dataReceivedTextView: TextView
+
     private lateinit var uuidTextView: TextView
 
     @Inject
     lateinit var vpnDatabase: VpnDatabase
 
     @Inject
-    lateinit var viewModelFactory: VpnViewModelFactory
-
-    @Inject
     lateinit var dataSizeFormatter: DataSizeFormatter
-
-    private inline fun <reified V : ViewModel> bindViewModel() = lazy { ViewModelProvider(this, viewModelFactory).get(V::class.java) }
-
-    private val viewModel: VpnControllerViewModel by bindViewModel()
     private val packetsFormatter = NumberFormat.getInstance()
 
     private var lastAppTrackerBlocked: VpnTracker? = null
@@ -85,6 +78,7 @@ class VpnControllerActivity : AppCompatActivity(R.layout.activity_vpn_controller
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_vpn_controller)
         setSupportActionBar(findViewById(R.id.toolbar))
 
         AndroidInjection.inject(this)

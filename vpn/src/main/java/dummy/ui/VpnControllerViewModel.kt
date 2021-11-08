@@ -20,19 +20,24 @@ import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.asLiveData
+import com.duckduckgo.app.global.plugins.view_model.ViewModelFactoryPlugin
 import com.duckduckgo.app.trackerdetection.api.WebTrackersBlockedRepository
 import com.duckduckgo.app.trackerdetection.db.WebTrackerBlocked
+import com.duckduckgo.di.scopes.AppObjectGraph
 import com.duckduckgo.mobile.android.vpn.model.VpnState
 import com.duckduckgo.mobile.android.vpn.model.VpnTracker
 import com.duckduckgo.mobile.android.vpn.service.TrackerBlockingVpnService
 import com.duckduckgo.mobile.android.vpn.stats.AppTrackerBlockingStatsRepository
 import com.duckduckgo.mobile.android.vpn.stats.AppTrackerBlockingStatsRepository.DataStats
+import com.squareup.anvil.annotations.ContributesMultibinding
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Provider
 
 class VpnControllerViewModel(
+    private val applicationContext: Context,
     private val appTrackerBlockedRepository: AppTrackerBlockingStatsRepository,
     private val webTrackersBlockedRepository: WebTrackersBlockedRepository,
-    private val applicationContext: Context,
     private val vpnPreferences: VpnPreferences
 ) : ViewModel() {
 
@@ -81,5 +86,30 @@ class VpnControllerViewModel(
 
         }
 
+    }
+}
+
+@ContributesMultibinding(AppObjectGraph::class)
+class VpnControllerViewModelFactory @Inject constructor(
+    private val context: Provider<Context>,
+    private val appTrackerBlockedRepository: Provider<AppTrackerBlockingStatsRepository>,
+    private val webTrackersBlockedRepository: Provider<WebTrackersBlockedRepository>,
+    private val vpnPreferences: Provider<VpnPreferences>
+) : ViewModelFactoryPlugin {
+
+    override fun <T : ViewModel?> create(modelClass: Class<T>): T? {
+        with(modelClass) {
+            return when {
+                isAssignableFrom(VpnControllerViewModel::class.java) -> (
+                    VpnControllerViewModel(
+                        context.get(),
+                        appTrackerBlockedRepository.get(),
+                        webTrackersBlockedRepository.get(),
+                        vpnPreferences.get()
+                    ) as T
+                    )
+                else -> null
+            }
+        }
     }
 }
