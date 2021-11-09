@@ -43,6 +43,9 @@ data class SimpleEvent(
         fun TUN_READ() = build("TUN_READ")
         fun ADD_TO_DEVICE_TO_NETWORK_QUEUE() = build("ADD_TO_DEVICE_TO_NETWORK_QUEUE")
         fun REMOVE_FROM_DEVICE_TO_NETWORK_QUEUE() = build("REMOVE_FROM_DEVICE_TO_NETWORK_QUEUE")
+        fun SOCKET_CHANNEL_READ_EXCEPTION() = build("SOCKET_CHANNEL_READ_EXCEPTION")
+        fun SOCKET_CHANNEL_WRITE_EXCEPTION() = build("SOCKET_CHANNEL_WRITE_EXCEPTION")
+        fun SOCKET_CHANNEL_CONNECT_EXCEPTION() = build("SOCKET_CHANNEL_CONNECT_EXCEPTION")
     }
 }
 
@@ -52,24 +55,7 @@ interface HealthStatDao {
     @Insert
     fun insert(event: SimpleEvent)
 
-//    @Insert
-//    fun insert(event: TunRead)
-//
-//    @Insert
-//    fun insert(event: WrittenToDeviceToNetworkQueue)
-//
-//    @Insert
-//    fun insert(event: ReadFromDeviceToNetworkQueue)
-
     @Query("SELECT count(*) FROM SimpleEvent WHERE timestamp >= :timestamp AND type=:type")
     fun eventCount(type: String, timestamp: Long): Long
 
-//    @Query("SELECT count(*) FROM TunRead WHERE timestamp >= :timestamp")
-//    fun tunReadCount(timestamp: Long): Long
-//
-//    @Query("SELECT count(*) FROM WrittenToDeviceToNetworkQueue WHERE timestamp >= :timestamp")
-//    fun writtenToDeviceToNetworkQueueCount(timestamp: Long): Long
-//
-//    @Query("SELECT count(*) FROM ReadFromDeviceToNetworkQueue WHERE timestamp >= :timestamp")
-//    fun readFromDeviceToNetworkQueueCount(timestamp: Long): Long
 }

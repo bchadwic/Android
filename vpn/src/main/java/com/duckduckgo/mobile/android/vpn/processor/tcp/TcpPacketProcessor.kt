@@ -85,7 +85,8 @@ class TcpPacketProcessor @AssistedInject constructor(
         tcpSocketWriter = tcpSocketWriter,
         packetPersister = packetPersister,
         tcbCloser = tcbCloser,
-        vpnCoroutineScope = vpnCoroutineScope
+        vpnCoroutineScope = vpnCoroutineScope,
+        healthMetricCounter = healthMetricCounter
     )
     private val tcpDeviceToNetwork =
         TcpDeviceToNetwork(

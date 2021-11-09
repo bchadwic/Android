@@ -21,6 +21,9 @@ import androidx.room.Room
 import com.duckduckgo.mobile.android.vpn.di.VpnCoroutineScope
 import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.ADD_TO_DEVICE_TO_NETWORK_QUEUE
 import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.REMOVE_FROM_DEVICE_TO_NETWORK_QUEUE
+import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.SOCKET_CHANNEL_CONNECT_EXCEPTION
+import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.SOCKET_CHANNEL_READ_EXCEPTION
+import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.SOCKET_CHANNEL_WRITE_EXCEPTION
 import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.TUN_READ
 import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister.TracerSummary.Completed
 import kotlinx.coroutines.CoroutineScope
@@ -66,7 +69,23 @@ class HealthMetricCounter @Inject constructor(
         }
     }
 
-    fun onTraceCompleted() {}
+    fun onSocketChannelReadError() {
+        coroutineScope.launch(databaseDispatcher) {
+            healthStatsDao.insert(SOCKET_CHANNEL_READ_EXCEPTION())
+        }
+    }
+
+    fun onSocketChannelWriteError() {
+        coroutineScope.launch(databaseDispatcher) {
+            healthStatsDao.insert(SOCKET_CHANNEL_WRITE_EXCEPTION())
+        }
+    }
+
+    fun onSocketChannelConnectError() {
+        coroutineScope.launch(databaseDispatcher) {
+            healthStatsDao.insert(SOCKET_CHANNEL_CONNECT_EXCEPTION())
+        }
+    }
 
     fun printStats() {
         coroutineScope.launch(databaseDispatcher) {
@@ -75,15 +94,23 @@ class HealthMetricCounter @Inject constructor(
             sb.tunToQueueMetrics()
             sb.deviceToNetworkQueueAddsRemovesMetrics()
             sb.tracerPacketMetrics()
+            sb.socketChannelReadExceptionMetrics()
+            sb.socketChannelWriteExceptionMetrics()
+            sb.socketChannelConnectExceptionMetrics()
 
             Timber.i(sb.toString())
         }
     }
 
+    fun getStat(type: SimpleEvent, recentTimeThreshold: Long? = null): Long {
+        val timeWindow = recentTimeThreshold ?: (now - WINDOW_DURATION_MS)
+        return healthStatsDao.eventCount(type.type, timeWindow)
+    }
+
     private fun StringBuilder.tunToQueueMetrics() {
         val recentTimeThreshold = now - WINDOW_DURATION_MS
-        val numberReceivedFromTun = healthStatsDao.eventCount(TUN_READ().type, recentTimeThreshold)
-        val numberWrittenToQueue = healthStatsDao.eventCount(ADD_TO_DEVICE_TO_NETWORK_QUEUE().type, recentTimeThreshold)
+        val numberReceivedFromTun = getStat(TUN_READ(), recentTimeThreshold)
+        val numberWrittenToQueue = getStat(ADD_TO_DEVICE_TO_NETWORK_QUEUE(), recentTimeThreshold)
         append(
             String.format(
                 "\nTUN packets received: %d\tWritten to queue: %d\tPassthrough rate: %s",
@@ -96,8 +123,8 @@ class HealthMetricCounter @Inject constructor(
 
     private fun StringBuilder.deviceToNetworkQueueAddsRemovesMetrics() {
         val recentTimeThreshold = now - WINDOW_DURATION_MS
-        val numberRead = healthStatsDao.eventCount(TUN_READ().type, recentTimeThreshold)
-        val numberWritten = healthStatsDao.eventCount(ADD_TO_DEVICE_TO_NETWORK_QUEUE().type, recentTimeThreshold)
+        val numberRead = getStat(REMOVE_FROM_DEVICE_TO_NETWORK_QUEUE(), recentTimeThreshold)
+        val numberWritten = getStat(ADD_TO_DEVICE_TO_NETWORK_QUEUE(), recentTimeThreshold)
         append(
             String.format(
                 "\nWritten to device-to-network queue: %d\tRead from device-to-network-queue: %d\tPassthrough rate: %s",
@@ -121,6 +148,26 @@ class HealthMetricCounter @Inject constructor(
             )
         )
     }
+
+    private fun StringBuilder.socketChannelReadExceptionMetrics() {
+        val recentTimeThreshold = now - WINDOW_DURATION_MS
+        val stat = getStat(SOCKET_CHANNEL_READ_EXCEPTION(), recentTimeThreshold)
+        append(String.format("Socket read exceptions: %d", stat))
+    }
+
+    private fun StringBuilder.socketChannelWriteExceptionMetrics() {
+        val recentTimeThreshold = now - WINDOW_DURATION_MS
+        val stat = getStat(SOCKET_CHANNEL_WRITE_EXCEPTION(), recentTimeThreshold)
+        append(String.format("Socket write exceptions: %d", stat))
+    }
+
+    private fun StringBuilder.socketChannelConnectExceptionMetrics() {
+        val recentTimeThreshold = now - WINDOW_DURATION_MS
+        val stat = getStat(SOCKET_CHANNEL_CONNECT_EXCEPTION(), recentTimeThreshold)
+        append(String.format("Socket connect exceptions: %d", stat))
+    }
+
+
 
     private fun calculatePercentage(numerator: Long, denominator: Long): String {
         if (denominator == 0L) return "0%"
