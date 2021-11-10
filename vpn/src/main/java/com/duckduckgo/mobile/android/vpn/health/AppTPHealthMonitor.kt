@@ -29,25 +29,30 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.random.Random
 
-@VpnScope
+@Singleton
 @ContributesMultibinding(VpnObjectGraph::class)
 class AppTPHealthMonitor @Inject constructor(
     private val healthMetricCounter: HealthMetricCounter,
     @VpnCoroutineScope private val coroutineScope: CoroutineScope) :
     VpnServiceCallbacks {
 
-    private val _healthState = MutableSharedFlow<HealthState>()
-    val healthState : SharedFlow<HealthState> = _healthState
+    private val _healthState = MutableStateFlow<HealthState>(Initializing)
+    val healthState : StateFlow<HealthState> = _healthState
     private val monitoringJob = ConflatedJob()
 
     private suspend fun checkCurrentHealth() {
-        if(Random.nextBoolean()) {
+        val tunReads = healthMetricCounter.getStat(SimpleEvent.TUN_READ())
+        val addToNetworkQueue = healthMetricCounter.getStat(SimpleEvent.ADD_TO_DEVICE_TO_NETWORK_QUEUE())
+
+        if(tunReads == 0L && addToNetworkQueue == 0L) {
             _healthState.emit(GoodHealth)
         }  else {
             _healthState.emit(BadHealth)

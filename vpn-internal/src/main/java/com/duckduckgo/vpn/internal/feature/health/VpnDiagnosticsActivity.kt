@@ -99,6 +99,12 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
         stopTracing()
         configureEventHandlers()
         updateStatus()
+
+        lifecycleScope.launch {
+            appTPHealthMonitor.healthState.collect {
+                Timber.i("Health is %s", it::class.java.simpleName)
+            }
+        }
     }
 
     private fun configureEventHandlers() {
@@ -142,12 +148,6 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
     }
 
     private fun updateStatus() {
-        lifecycleScope.launch {
-            appTPHealthMonitor.healthState.collect {
-                Timber.i("Health is %s", it)
-            }
-        }
-
         lifecycleScope.launch(Dispatchers.IO) {
             val networkInfo = retrieveNetworkStatusInfo()
             val dnsInfo = retrieveDnsInfo()
