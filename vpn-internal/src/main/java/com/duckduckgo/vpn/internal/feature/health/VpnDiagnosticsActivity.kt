@@ -32,23 +32,23 @@ import com.duckduckgo.app.global.extensions.historicalExitReasonsByProcessName
 import com.duckduckgo.app.utils.ConflatedJob
 import com.duckduckgo.mobile.android.vpn.R
 import com.duckduckgo.mobile.android.vpn.databinding.ActivityVpnDiagnosticsBinding
-import com.duckduckgo.mobile.android.vpn.health.HealthMetricCounter
+import com.duckduckgo.mobile.android.vpn.health.*
 import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.ADD_TO_DEVICE_TO_NETWORK_QUEUE
 import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.REMOVE_FROM_DEVICE_TO_NETWORK_QUEUE
 import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.SOCKET_CHANNEL_CONNECT_EXCEPTION
 import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.SOCKET_CHANNEL_READ_EXCEPTION
 import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.SOCKET_CHANNEL_WRITE_EXCEPTION
 import com.duckduckgo.mobile.android.vpn.health.SimpleEvent.Companion.TUN_READ
-import com.duckduckgo.mobile.android.vpn.health.TracedState
-import com.duckduckgo.mobile.android.vpn.health.TracerEvent
-import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister
 import com.duckduckgo.mobile.android.vpn.health.TracerPacketRegister.TracerSummary.Completed
 import com.duckduckgo.mobile.android.vpn.model.TimePassed
 import com.duckduckgo.mobile.android.vpn.service.VpnQueues
 import com.duckduckgo.mobile.android.vpn.stats.AppTrackerBlockingStatsRepository
 import dagger.android.AndroidInjection
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
+import timber.log.Timber
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
@@ -77,6 +77,9 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
     @Inject
     lateinit var vpnQueues: VpnQueues
 
+    @Inject
+    lateinit var appTPHealthMonitor: AppTPHealthMonitor
+
     private var timerUpdateJob: Job? = null
 
     private val numberFormatter = NumberFormat.getNumberInstance().also { it.maximumFractionDigits = 2 }
@@ -95,7 +98,7 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
 
         stopTracing()
         configureEventHandlers()
-        updateNetworkStatus()
+        updateStatus()
     }
 
     private fun configureEventHandlers() {
@@ -138,7 +141,13 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
         vpnQueues.tcpDeviceToNetwork.offer(packet)
     }
 
-    private fun updateNetworkStatus() {
+    private fun updateStatus() {
+        lifecycleScope.launch {
+            appTPHealthMonitor.healthState.collect {
+                Timber.i("Health is %s", it)
+            }
+        }
+
         lifecycleScope.launch(Dispatchers.IO) {
             val networkInfo = retrieveNetworkStatusInfo()
             val dnsInfo = retrieveDnsInfo()
@@ -385,7 +394,7 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
         timerUpdateJob?.cancel()
         timerUpdateJob = lifecycleScope.launch {
             while (isActive) {
-                updateNetworkStatus()
+                updateStatus()
                 delay(1_000)
             }
         }
@@ -404,7 +413,7 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.refresh -> {
-                updateNetworkStatus()
+                updateStatus()
                 true
             }
             R.id.appExitHistory -> {
