@@ -46,7 +46,6 @@ import com.duckduckgo.mobile.android.vpn.stats.AppTrackerBlockingStatsRepository
 import dagger.android.AndroidInjection
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import timber.log.Timber
 import java.net.Inet4Address
@@ -117,7 +116,7 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
         }
 
         binding.toggleTracers.setOnClickListener {
-            if(automaticTracerInsertionJob.isActive) {
+            if (automaticTracerInsertionJob.isActive) {
                 stopTracing()
             } else {
                 startTracing()
@@ -140,7 +139,7 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
     private fun startTracing() {
         binding.toggleTracers.text = "Stop tracing"
         automaticTracerInsertionJob += lifecycleScope.launch {
-            while(isActive) {
+            while (isActive) {
                 insertTracer()
                 delay(1_000)
             }
@@ -341,7 +340,7 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
     private fun android.net.Network.isConnected(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             connectivityManager.getNetworkCapabilities(this)?.hasCapability(NET_CAPABILITY_INTERNET) == true &&
-                    connectivityManager.getNetworkCapabilities(this)?.hasCapability(NET_CAPABILITY_VALIDATED) == true
+                connectivityManager.getNetworkCapabilities(this)?.hasCapability(NET_CAPABILITY_VALIDATED) == true
         } else {
             isConnectedLegacy(this)
         }

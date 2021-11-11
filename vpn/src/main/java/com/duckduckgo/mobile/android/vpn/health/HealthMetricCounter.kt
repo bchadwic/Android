@@ -167,8 +167,6 @@ class HealthMetricCounter @Inject constructor(
         append(String.format("Socket connect exceptions: %d", stat))
     }
 
-
-
     private fun calculatePercentage(numerator: Long, denominator: Long): String {
         if (denominator == 0L) return "0%"
         return String.format("%s%%", numberFormat.format(numerator.toDouble() / denominator * 100))

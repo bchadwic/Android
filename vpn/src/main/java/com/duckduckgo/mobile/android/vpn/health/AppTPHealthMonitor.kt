@@ -55,12 +55,12 @@ class AppTPHealthMonitor @Inject constructor(
     private var simulatedGoodHealth: Boolean? = null
 
     private suspend fun checkCurrentHealth() {
-        if(simulatedGoodHealth == true) {
+        if (simulatedGoodHealth == true) {
             Timber.i("Pretending good health")
             _healthState.emit(GoodHealth)
             hideBadHealthNotification()
             return
-        } else if(simulatedGoodHealth == false) {
+        } else if (simulatedGoodHealth == false) {
             Timber.i("Pretending bad health")
             _healthState.emit(BadHealth)
             showBadHealthNotification()
