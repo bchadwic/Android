@@ -123,6 +123,18 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
                 startTracing()
             }
         }
+
+        binding.simulateGoodHealth.setOnClickListener {
+            appTPHealthMonitor.simulateHealthState(true)
+        }
+
+        binding.simulateBadHealth.setOnClickListener {
+            appTPHealthMonitor.simulateHealthState(false)
+        }
+
+        binding.noSimulation.setOnClickListener {
+            appTPHealthMonitor.simulateHealthState(null)
+        }
     }
 
     private fun startTracing() {
@@ -398,11 +410,15 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
                 delay(1_000)
             }
         }
+
+        appTPHealthMonitor.toggleNotifications(false)
     }
 
     override fun onStop() {
         super.onStop()
         timerUpdateJob?.cancel()
+
+        appTPHealthMonitor.toggleNotifications(true)
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
