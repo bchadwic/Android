@@ -50,12 +50,13 @@ class AppTPHealthMonitor @Inject constructor(
 
     private val _healthState = MutableStateFlow<HealthState>(Initializing)
     val healthState: StateFlow<HealthState> = _healthState
+
     private val monitoringJob = ConflatedJob()
 
-    private var shouldShowNotifications: Boolean = true
     private var simulatedGoodHealth: Boolean? = null
 
     private var tunReadQueueReadAlertDuration: Int = 0
+    private val badHealthNotificationManager = HealthNotificationManager(applicationContext)
 
     private suspend fun checkCurrentHealth() {
 
@@ -68,6 +69,25 @@ class AppTPHealthMonitor @Inject constructor(
 //            - if the rate is still not good after N samples, the system is now in bad health. Raise the alarm.
 
 
+        sampleTunReadQueueReadRate()
+
+        /*
+         * temporary hack; remove once development done
+         */
+        temporarySimulatedHealthCheck()
+
+        if (isInProlongedBadHealth()) {
+            Timber.i("App health check caught some problem(s)")
+            _healthState.emit(BadHealth)
+            badHealthNotificationManager.showBadHealthNotification()
+        } else {
+            Timber.i("App health check is good")
+            _healthState.emit(GoodHealth)
+            badHealthNotificationManager.hideBadHealthNotification()
+        }
+    }
+
+    private fun sampleTunReadQueueReadRate() {
         val tunReads = healthMetricCounter.getStat(SimpleEvent.TUN_READ())
         val readFromNetworkQueue = healthMetricCounter.getStat(SimpleEvent.REMOVE_FROM_DEVICE_TO_NETWORK_QUEUE())
 
@@ -76,33 +96,16 @@ class AppTPHealthMonitor @Inject constructor(
             is BadHealth -> tunReadQueueReadAlertDuration++
             else -> tunReadQueueReadAlertDuration = 0
         }
+    }
 
-        /*
-         * temporary hack; remove once development done
-         */
-        temporarySimulatedHealthCheck()
-
-
-
+    private fun isInProlongedBadHealth(): Boolean {
         var badHealthFlag = false
-        if (tunReadQueueReadAlertDuration == 0) {
-            Timber.v("tunReadQueueRate is fine")
-        } else if (tunReadQueueReadAlertDuration >= 5) {
-            Timber.i("tunReadQueueReadAlertDuration remained elevated across %d samples. this is bad health sign", tunReadQueueReadAlertDuration)
+
+        if (tunReadQueueReadAlertDuration >= 5) {
             badHealthFlag = true
-        } else {
-            Timber.i("tunReadQueueReadAlertDuration elevated across %d samples.", tunReadQueueReadAlertDuration)
         }
 
-        if (badHealthFlag) {
-            Timber.i("App health check caught some problem(s)")
-            _healthState.emit(BadHealth)
-            showBadHealthNotification()
-        } else {
-            Timber.i("App health check is good")
-            _healthState.emit(GoodHealth)
-            hideBadHealthNotification()
-        }
+        return badHealthFlag
     }
 
     private fun temporarySimulatedHealthCheck() {
@@ -115,43 +118,7 @@ class AppTPHealthMonitor @Inject constructor(
         }
     }
 
-    private suspend fun showBadHealthNotification() {
-        if (!shouldShowNotifications) {
-            Timber.v("Not showing health notifications.")
-            return
-        }
 
-        val target = Intent().also {
-            it.setClassName(applicationContext.packageName, "com.duckduckgo.vpn.internal.feature.health.VpnDiagnosticsActivity")
-        }
-
-        val pendingIntent = TaskStackBuilder.create(applicationContext)
-            .addNextIntentWithParentStack(target)
-            .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
-
-        val notification = NotificationCompat.Builder(applicationContext, "notificationid")
-            .setSmallIcon(R.drawable.ic_baseline_mood_bad_24)
-            .setContentTitle("hello")
-            .setContentText("it looks like the VPN Service might be in bad health")
-            .setContentIntent(pendingIntent)
-            .setOnlyAlertOnce(true)
-            .build()
-
-        withContext(Dispatchers.Main) {
-            NotificationManagerCompat.from(applicationContext).let { nm ->
-
-                val channelBuilder = NotificationChannelCompat.Builder("notificationid", NotificationManagerCompat.IMPORTANCE_DEFAULT)
-                    .setName("notificationid")
-                nm.createNotificationChannel(channelBuilder.build())
-
-                nm.notify(BAD_HEALTH_NOTIFICATION_ID, notification)
-            }
-        }
-    }
-
-    private fun hideBadHealthNotification() {
-        NotificationManagerCompat.from(applicationContext).cancel(BAD_HEALTH_NOTIFICATION_ID)
-    }
 
     fun startMonitoring() {
         monitoringJob += coroutineScope.launch {
@@ -166,9 +133,7 @@ class AppTPHealthMonitor @Inject constructor(
         monitoringJob.cancel()
     }
 
-    fun toggleNotifications(shouldShowNotifications: Boolean) {
-        this.shouldShowNotifications = shouldShowNotifications
-    }
+
 
     companion object {
         private const val MONITORING_INTERVAL_MS: Long = 1_000
@@ -194,8 +159,50 @@ class AppTPHealthMonitor @Inject constructor(
         this.simulatedGoodHealth = goodHealth
     }
 
-    sealed class AlertType {
-        object None : AlertType()
-        data class Elevated(val elevatedDuration: Int) : AlertType()
+    fun toggleNotifications(shouldShowNotifications: Boolean) {
+        badHealthNotificationManager.shouldShowNotifications = shouldShowNotifications
+    }
+
+    class HealthNotificationManager(private val context: Context) {
+
+        var shouldShowNotifications: Boolean = true
+
+        suspend fun showBadHealthNotification() {
+            if (!shouldShowNotifications) {
+                Timber.v("Not showing health notifications.")
+                return
+            }
+
+            val target = Intent().also {
+                it.setClassName(context.packageName, "com.duckduckgo.vpn.internal.feature.health.VpnDiagnosticsActivity")
+            }
+
+            val pendingIntent = TaskStackBuilder.create(context)
+                .addNextIntentWithParentStack(target)
+                .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
+
+            val notification = NotificationCompat.Builder(context, "notificationid")
+                .setSmallIcon(R.drawable.ic_baseline_mood_bad_24)
+                .setContentTitle("hello")
+                .setContentText("it looks like the VPN Service might be in bad health")
+                .setContentIntent(pendingIntent)
+                .setOnlyAlertOnce(true)
+                .build()
+
+            withContext(Dispatchers.Main) {
+                NotificationManagerCompat.from(context).let { nm ->
+
+                    val channelBuilder = NotificationChannelCompat.Builder("notificationid", NotificationManagerCompat.IMPORTANCE_DEFAULT)
+                        .setName("notificationid")
+                    nm.createNotificationChannel(channelBuilder.build())
+
+                    nm.notify(BAD_HEALTH_NOTIFICATION_ID, notification)
+                }
+            }
+        }
+
+        fun hideBadHealthNotification() {
+            NotificationManagerCompat.from(context).cancel(BAD_HEALTH_NOTIFICATION_ID)
+        }
     }
 }
