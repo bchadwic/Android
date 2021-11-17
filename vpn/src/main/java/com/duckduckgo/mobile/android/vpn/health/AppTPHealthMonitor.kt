@@ -58,17 +58,6 @@ class AppTPHealthMonitor @Inject constructor(
     private var tunReadQueueReadAlertDuration: Int = 0
 
     private suspend fun checkCurrentHealth() {
-        if (simulatedGoodHealth == true) {
-            Timber.i("Pretending good health")
-            _healthState.emit(GoodHealth)
-            hideBadHealthNotification()
-            return
-        } else if (simulatedGoodHealth == false) {
-            Timber.i("Pretending bad health")
-            _healthState.emit(BadHealth)
-            showBadHealthNotification()
-            return
-        }
 
 //        store raw metrics as they happen.
 //            - sample the health regularly (every 10s?)
@@ -88,6 +77,13 @@ class AppTPHealthMonitor @Inject constructor(
             else -> tunReadQueueReadAlertDuration = 0
         }
 
+        /*
+         * temporary hack; remove once development done
+         */
+        temporarySimulatedHealthCheck()
+
+
+
         var badHealthFlag = false
         if (tunReadQueueReadAlertDuration == 0) {
             Timber.v("tunReadQueueRate is fine")
@@ -106,6 +102,16 @@ class AppTPHealthMonitor @Inject constructor(
             Timber.i("App health check is good")
             _healthState.emit(GoodHealth)
             hideBadHealthNotification()
+        }
+    }
+
+    private fun temporarySimulatedHealthCheck() {
+        if (simulatedGoodHealth == true) {
+            Timber.i("Pretending good health")
+            tunReadQueueReadAlertDuration = 0
+        } else if (simulatedGoodHealth == false) {
+            Timber.i("Pretending bad health")
+            tunReadQueueReadAlertDuration = 40
         }
     }
 
