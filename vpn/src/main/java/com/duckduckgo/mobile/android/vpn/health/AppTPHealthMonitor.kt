@@ -90,7 +90,7 @@ class AppTPHealthMonitor @Inject constructor(
 
         var badHealthFlag = false
         if (tunReadQueueReadAlertDuration == 0) {
-            Timber.i("tunReadQueueRate is fine)")
+            Timber.v("tunReadQueueRate is fine")
         } else if (tunReadQueueReadAlertDuration >= 5) {
             Timber.i("tunReadQueueReadAlertDuration remained elevated across %d samples. this is bad health sign", tunReadQueueReadAlertDuration)
             badHealthFlag = true
