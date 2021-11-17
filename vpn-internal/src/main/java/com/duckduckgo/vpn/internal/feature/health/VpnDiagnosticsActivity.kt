@@ -30,6 +30,7 @@ import androidx.lifecycle.lifecycleScope
 import com.duckduckgo.app.global.DuckDuckGoActivity
 import com.duckduckgo.app.global.extensions.historicalExitReasonsByProcessName
 import com.duckduckgo.app.utils.ConflatedJob
+import com.duckduckgo.mobile.android.ui.view.rightDrawable
 import com.duckduckgo.mobile.android.vpn.R
 import com.duckduckgo.mobile.android.vpn.databinding.ActivityVpnDiagnosticsBinding
 import com.duckduckgo.mobile.android.vpn.health.*
@@ -100,8 +101,16 @@ class VpnDiagnosticsActivity : DuckDuckGoActivity(), CoroutineScope by MainScope
         updateStatus()
 
         lifecycleScope.launch {
-            appTPHealthMonitor.healthState.collect {
-                Timber.i("Health is %s", it::class.java.simpleName)
+            appTPHealthMonitor.healthState.collect { healthState ->
+                Timber.i("Health is %s", healthState::class.java.simpleName)
+                val healthIndicator = when (healthState) {
+                    is AppTPHealthMonitor.HealthState.GoodHealth -> R.drawable.ic_baseline_mood_happy_24
+                    is AppTPHealthMonitor.HealthState.BadHealth -> R.drawable.ic_baseline_mood_bad_24
+                    else -> 0
+                }
+                withContext(Dispatchers.Main) {
+                    binding.healthMetricsLabel.rightDrawable(healthIndicator)
+                }
             }
         }
     }

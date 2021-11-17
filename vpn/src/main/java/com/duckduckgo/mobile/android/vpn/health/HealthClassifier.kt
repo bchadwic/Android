@@ -16,16 +16,12 @@
 
 package com.duckduckgo.mobile.android.vpn.health
 
+import com.duckduckgo.mobile.android.vpn.health.AppTPHealthMonitor.HealthState
+import com.duckduckgo.mobile.android.vpn.health.AppTPHealthMonitor.HealthState.*
 import com.duckduckgo.mobile.android.vpn.health.HealthClassifier.Companion.percentage
-import com.duckduckgo.mobile.android.vpn.health.HealthState.*
+import javax.inject.Inject
 
-sealed class HealthState {
-    object Initializing : HealthState()
-    object GoodHealth : HealthState()
-    object BadHealth : HealthState()
-}
-
-class HealthClassifier {
+class HealthClassifier @Inject constructor() {
 
     private val tunInputQueueReadHealthRule = TunInputQueueReadHealthRule()
 

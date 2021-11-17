@@ -107,6 +107,11 @@ class HealthMetricCounter @Inject constructor(
         return healthStatsDao.eventCount(type.type, timeWindow)
     }
 
+//    fun getStatHistory(type: SimpleEvent, recentTimeThreshold: Long? = null): List<Long> {
+//        val timeWindow = recentTimeThreshold ?: (now - WINDOW_DURATION_MS)
+//        return healthStatsDao.eventCount(type.type, timeWindow)
+//    }
+
     private fun StringBuilder.tunToQueueMetrics() {
         val recentTimeThreshold = now - WINDOW_DURATION_MS
         val numberReceivedFromTun = getStat(TUN_READ(), recentTimeThreshold)

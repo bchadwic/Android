@@ -42,6 +42,7 @@ import javax.inject.Singleton
 @ContributesMultibinding(VpnObjectGraph::class)
 class AppTPHealthMonitor @Inject constructor(
     private val healthMetricCounter: HealthMetricCounter,
+    private val healthClassifier: HealthClassifier,
     @VpnCoroutineScope private val coroutineScope: CoroutineScope,
     private val applicationContext: Context
 ) :
@@ -53,6 +54,8 @@ class AppTPHealthMonitor @Inject constructor(
 
     private var shouldShowNotifications: Boolean = true
     private var simulatedGoodHealth: Boolean? = null
+
+    private var tunReadQueueReadAlertDuration: Int = 0
 
     private suspend fun checkCurrentHealth() {
         if (simulatedGoodHealth == true) {
@@ -67,15 +70,42 @@ class AppTPHealthMonitor @Inject constructor(
             return
         }
 
-        val tunReads = healthMetricCounter.getStat(SimpleEvent.TUN_READ())
-        val addToNetworkQueue = healthMetricCounter.getStat(SimpleEvent.ADD_TO_DEVICE_TO_NETWORK_QUEUE())
+//        store raw metrics as they happen.
+//            - sample the health regularly (every 10s?)
+//            - every sample, get stats from last 10s, and produce a single RATE
+//            - don't store the rate. but instead check if the rate is acceptable. if it is, all is well.
+//            - if the rate is not acceptable, flag it but don't yet raise the alarm
+//            - next health sample, check rate again. if it's fine now, remove the flag (false alarm)
+//            - if the rate is still not good after N samples, the system is now in bad health. Raise the alarm.
 
-        if (tunReads == 0L && addToNetworkQueue == 0L) {
-            _healthState.emit(GoodHealth)
-            hideBadHealthNotification()
+
+        val tunReads = healthMetricCounter.getStat(SimpleEvent.TUN_READ())
+        val readFromNetworkQueue = healthMetricCounter.getStat(SimpleEvent.REMOVE_FROM_DEVICE_TO_NETWORK_QUEUE())
+
+        when (healthClassifier.determineHealthTunInputQueueReadRatio(tunReads, readFromNetworkQueue)) {
+            is GoodHealth -> tunReadQueueReadAlertDuration = 0
+            is BadHealth -> tunReadQueueReadAlertDuration++
+            else -> tunReadQueueReadAlertDuration = 0
+        }
+
+        var badHealthFlag = false
+        if (tunReadQueueReadAlertDuration == 0) {
+            Timber.i("tunReadQueueRate is fine)")
+        } else if (tunReadQueueReadAlertDuration >= 5) {
+            Timber.i("tunReadQueueReadAlertDuration remained elevated across %d samples. this is bad health sign", tunReadQueueReadAlertDuration)
+            badHealthFlag = true
         } else {
+            Timber.i("tunReadQueueReadAlertDuration elevated across %d samples.", tunReadQueueReadAlertDuration)
+        }
+
+        if (badHealthFlag) {
+            Timber.i("App health check caught some problem(s)")
             _healthState.emit(BadHealth)
             showBadHealthNotification()
+        } else {
+            Timber.i("App health check is good")
+            _healthState.emit(GoodHealth)
+            hideBadHealthNotification()
         }
     }
 
@@ -94,10 +124,11 @@ class AppTPHealthMonitor @Inject constructor(
             .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
 
         val notification = NotificationCompat.Builder(applicationContext, "notificationid")
-            .setSmallIcon(R.drawable.ic_vpn_notification_24)
+            .setSmallIcon(R.drawable.ic_baseline_mood_bad_24)
             .setContentTitle("hello")
             .setContentText("it looks like the VPN Service might be in bad health")
             .setContentIntent(pendingIntent)
+            .setOnlyAlertOnce(true)
             .build()
 
         withContext(Dispatchers.Main) {
@@ -155,5 +186,10 @@ class AppTPHealthMonitor @Inject constructor(
 
     fun simulateHealthState(goodHealth: Boolean?) {
         this.simulatedGoodHealth = goodHealth
+    }
+
+    sealed class AlertType {
+        object None : AlertType()
+        data class Elevated(val elevatedDuration: Int) : AlertType()
     }
 }

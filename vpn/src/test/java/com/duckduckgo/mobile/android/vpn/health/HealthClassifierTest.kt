@@ -16,7 +16,7 @@
 
 package com.duckduckgo.mobile.android.vpn.health
 
-import com.duckduckgo.mobile.android.vpn.health.HealthState.Initializing
+import com.duckduckgo.mobile.android.vpn.health.AppTPHealthMonitor.HealthState.Initializing
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
