@@ -39,6 +39,9 @@ import com.duckduckgo.app.pixels.AppPixelName
 import com.duckduckgo.app.statistics.pixels.Pixel
 import com.duckduckgo.app.statistics.pixels.Pixel.PixelValues.DAX_FIRE_DIALOG_CTA
 import com.duckduckgo.app.trackerdetection.model.Entity
+import com.duckduckgo.mobile.android.ui.view.gone
+import com.duckduckgo.mobile.android.ui.view.hide
+import com.duckduckgo.mobile.android.ui.view.show
 import kotlinx.android.synthetic.main.include_cta_buttons.view.*
 import kotlinx.android.synthetic.main.include_cta_content.view.*
 import kotlinx.android.synthetic.main.include_dax_dialog_cta.view.*
@@ -249,6 +252,17 @@ sealed class DaxBubbleCta(
         appInstallStore
     )
 
+    class DaxFireproofCta(override val onboardingStore: OnboardingStore, override val appInstallStore: AppInstallStore) : DaxBubbleCta(
+        CtaId.DAX_FIREPROOF,
+        R.string.daxFireproofCtaText,
+        AppPixelName.ONBOARDING_FIREPROOF_CTA_SHOWN,
+        AppPixelName.ONBOARDING_FIREPROOF_CTA_KEEP_ME_SIGNED_IN_BUTTON,
+        AppPixelName.ONBOARDING_FIREPROOF_CTA_BURN_EVERYTHING_BUTTON,
+        Pixel.PixelValues.DAX_FIREPROOF_CTA,
+        onboardingStore,
+        appInstallStore
+    )
+
     class DaxEndCta(override val onboardingStore: OnboardingStore, override val appInstallStore: AppInstallStore) : DaxBubbleCta(
         CtaId.DAX_END,
         R.string.daxEndCtaText,
@@ -381,6 +395,18 @@ sealed class HomePanelCta(
         AppPixelName.SURVEY_CTA_SHOWN,
         AppPixelName.SURVEY_CTA_LAUNCHED,
         AppPixelName.SURVEY_CTA_DISMISSED
+    )
+
+    object DeviceShieldCta : HomePanelCta(
+        CtaId.DEVICE_SHIELD_CTA,
+        R.drawable.add_widget_cta_icon,
+        R.string.addWidgetCtaTitle,
+        R.string.addWidgetCtaDescription,
+        R.string.addWidgetCtaAutoLaunchButton,
+        R.string.addWidgetCtaDismissButton,
+        null,
+        null,
+        null
     )
 
     object AddWidgetAuto : HomePanelCta(
