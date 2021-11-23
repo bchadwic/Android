@@ -184,6 +184,7 @@ class BrowserTabViewModel(
         val showPrivacyGrade: Boolean = false,
         val showSearchIcon: Boolean = false,
         val showClearButton: Boolean = false,
+        val showCopyButton: Boolean = false,
         val showTabsButton: Boolean = true,
         val fireButton: HighlightableButton = HighlightableButton.Visible(),
         val showMenuButton: HighlightableButton = HighlightableButton.Visible(),
@@ -641,7 +642,7 @@ class BrowserTabViewModel(
         globalLayoutState.value = Browser(isNewTabState = false)
         findInPageViewState.value = FindInPageViewState(visible = false, canFindInPage = true)
         omnibarViewState.value = currentOmnibarViewState().copy(omnibarText = trimmedInput, shouldMoveCaretToEnd = false)
-        browserViewState.value = currentBrowserViewState().copy(browserShowing = true, showClearButton = false)
+        browserViewState.value = currentBrowserViewState().copy(browserShowing = true, showClearButton = false, showCopyButton = false)
         autoCompleteViewState.value = currentAutoCompleteViewState().copy(showSuggestions = false, showFavorites = false, searchResults = AutoCompleteResult("", emptyList()))
     }
 
@@ -920,12 +921,13 @@ class BrowserTabViewModel(
             isWhitelisted = false,
             showSearchIcon = false,
             showClearButton = false,
+            showCopyButton = false,
             canFireproofSite = canFireproofSite,
             isFireproofWebsite = isFireproofWebsite(),
             showDaxIcon = shouldShowDaxIcon(url, true)
         )
 
-        Timber.d("showPrivacyGrade=true, showSearchIcon=false, showClearButton=false")
+        Timber.d("showPrivacyGrade=true, showSearchIcon=false, showClearButton=false, showCopyButton=false")
 
         if (duckDuckGoUrlDetector.isDuckDuckGoQueryUrl(url)) {
             statisticsUpdater.refreshSearchRetentionAtb()
@@ -1048,6 +1050,11 @@ class BrowserTabViewModel(
         }
     }
 
+    fun copyLink() {
+        val url = site?.url
+        if (url != null && url.isNotBlank()) command.value = CopyLink(url.toString())
+    }
+
     private fun pageCleared() {
         Timber.v("Page cleared: $url")
         site = null
@@ -1064,10 +1071,11 @@ class BrowserTabViewModel(
             canReportSite = false,
             showSearchIcon = true,
             showClearButton = true,
+            showCopyButton = true,
             canFireproofSite = false,
             showDaxIcon = false
         )
-        Timber.d("showPrivacyGrade=false, showSearchIcon=true, showClearButton=true")
+        Timber.d("showPrivacyGrade=false, showSearchIcon=true, showClearButton=true, showCopyButton=true")
     }
 
     override fun pageRefreshed(refreshedUrl: String) {
@@ -1388,6 +1396,7 @@ class BrowserTabViewModel(
             false
         }
         val showClearButton = hasFocus && query.isNotBlank()
+        val showCopyButton = hasFocus && query.isNotBlank()
         val showControls = !hasFocus || query.isBlank()
         val showPrivacyGrade = !hasFocus
         val showSearchIcon = hasFocus
@@ -1415,10 +1424,11 @@ class BrowserTabViewModel(
                 HighlightableButton.Gone
             },
             showClearButton = showClearButton,
+            showCopyButton = showCopyButton,
             showDaxIcon = shouldShowDaxIcon(url, showPrivacyGrade)
         )
 
-        Timber.d("showPrivacyGrade=$showPrivacyGrade, showSearchIcon=$showSearchIcon, showClearButton=$showClearButton")
+        Timber.d("showPrivacyGrade=$showPrivacyGrade, showSearchIcon=$showSearchIcon, showClearButton=$showClearButton, showCopyButton=$showCopyButton")
 
         autoCompleteViewState.value = currentAutoCompleteViewState()
             .copy(showSuggestions = showAutoCompleteSuggestions, showFavorites = showFavoritesAsSuggestions, searchResults = autoCompleteSearchResults)

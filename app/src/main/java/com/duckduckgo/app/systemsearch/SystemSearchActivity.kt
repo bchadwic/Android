@@ -258,6 +258,7 @@ class SystemSearchActivity : DuckDuckGoActivity() {
         omnibarTextInput.removeTextChangedListener(textChangeWatcher)
         omnibarTextInput.addTextChangedListener(textChangeWatcher)
         binding.clearTextButton.setOnClickListener { viewModel.userRequestedClear() }
+        binding.copyTextButton.setOnClickListener { viewModel.userRequestedCopy() }
     }
 
     private fun renderOnboardingViewState(viewState: SystemSearchViewModel.OnboardingViewState) {
@@ -294,6 +295,9 @@ class SystemSearchActivity : DuckDuckGoActivity() {
                 omnibarTextInput.setText("")
                 omnibarTextInput.addTextChangedListener(textChangeWatcher)
             }
+            is CopyInputText -> {
+                copyInputText()
+            }
             is LaunchDuckDuckGo -> {
                 launchDuckDuckGo()
             }
@@ -324,6 +328,12 @@ class SystemSearchActivity : DuckDuckGoActivity() {
     private fun editQuery(query: String) {
         omnibarTextInput.setText(query)
         omnibarTextInput.setSelection(query.length)
+    }
+
+    private fun copyInputText() {
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager? ?: return
+        val clip = ClipData.newPlainText(null, omnibarTextInput.text.toString())
+        clipboard.setPrimaryClip(clip)
     }
 
     private fun confirmDeleteSavedSite(savedSite: SavedSite) {

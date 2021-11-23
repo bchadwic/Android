@@ -1174,6 +1174,7 @@ class BrowserTabFragment :
         )
 
         clearTextButton.setOnClickListener { omnibarTextInput.setText("") }
+        copyTextButton.setOnClickListener { viewModel.copyLink() }
     }
 
     private fun userSelectedAutocomplete(suggestion: AutoCompleteSuggestion) {
@@ -1689,7 +1690,8 @@ class BrowserTabFragment :
             .show()
     }
 
-    fun omnibarViews(): List<View> = listOf(clearTextButton, omnibarTextInput, searchIcon)
+    fun omnibarViews(): List<View> =
+        listOf(clearTextButton, copyTextButton, omnibarTextInput, searchIcon)
 
     override fun onAnimationFinished() {
         viewModel.stopShowingEmptyGrade()
@@ -2147,11 +2149,13 @@ class BrowserTabFragment :
                 daxIcon?.isVisible = viewState.showDaxIcon
                 privacyGradeButton?.isInvisible = !viewState.showPrivacyGrade || viewState.showDaxIcon
                 clearTextButton?.isVisible = viewState.showClearButton
+                copyTextButton?.isVisible = viewState.showCopyButton
                 searchIcon?.isVisible = viewState.showSearchIcon
             } else {
                 daxIcon.isVisible = false
                 privacyGradeButton?.isVisible = false
                 clearTextButton?.isVisible = viewState.showClearButton
+                copyTextButton?.isVisible = viewState.showCopyButton
                 searchIcon?.isVisible = true
             }
 

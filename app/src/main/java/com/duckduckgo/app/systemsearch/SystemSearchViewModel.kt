@@ -83,6 +83,7 @@ class SystemSearchViewModel(
 
     sealed class Command {
         object ClearInputText : Command()
+        object CopyInputText : Command()
         object LaunchDuckDuckGo : Command()
         data class LaunchBrowser(val query: String) : Command()
         data class LaunchEditDialog(val savedSite: SavedSite) : Command()
@@ -244,6 +245,10 @@ class SystemSearchViewModel(
     fun userRequestedClear() {
         command.value = Command.ClearInputText
         inputCleared()
+    }
+
+    fun userRequestedCopy() {
+        command.value = Command.CopyInputText
     }
 
     fun userSubmittedQuery(query: String) {
